@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Mobile Optimization: Set viewport and disable zooming -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Clicker Game</title>
+  <style>
+    /* Prevent horizontal scrolling */
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      width: 100%;
+      overflow-x: hidden;
+      -ms-touch-action: manipulation;
+      touch-action: manipulation;
+    }
+    body {
+      background-color: #f8f8f8; /* Off white background */
+      color: #000;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* Fixed header: same background as body, no shadow */
+    #header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: #f8f8f8;
+      padding: 10px 0;
+      z-index: 1001;
+      text-align: center;
+    }
+    #header h1 {
+      margin: 5px 0;
+      font-size: 1.5em;
+    }
+    /* Score, production, and message in header */
+    #header #score, 
+    #header #production,
+    #header #message {
+      font-size: 1.2em;
+      margin: 2px 0;
+    }
+
+    #message {
+      font-size: 1.2em;
+      margin: 2px 0;
+      color: red;
+    }
+    /* Main game container: pushed down below the header */
+    #gameContainer {
+      width: 90%;
+      max-width: 600px;
+      margin: 180px auto 20px auto; /* Adjust top margin to leave room for header */
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 1em;
+      background-color: blue;
+      color: white;
+      border: none;
+      cursor: pointer;
+      -ms-touch-action: manipulation;
+      touch-action: manipulation;
+    }
+    button:hover {
+      opacity: 0.8;
+    }
+    .adderRow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px 0;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .adderInfo {
+      flex: 1;
+      text-align: left;
+      font-size: 0.9em;
+    }
+    .adderButton {
+      flex: 1;
+      text-align: center;
+    }
+    .adderStats {
+      flex: 1;
+      text-align: right;
+      font-size: 0.9em;
+    }
+    /* Special styling for the Presidential Adder row */
+    #presidentialAdderRow {
+      background: linear-gradient(to right, red, white, blue);
+      color: white;
+      border: 2px solid blue;
+    }
+    #presidentialAdderRow button {
+      background-color: navy;
+      color: white;
+    }
+    /* Stats modal styles */
+    #statsPanel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      display: none;
+      overflow-y: auto;
+      padding: 20px;
+      box-sizing: border-box;
+      z-index: 1000;
+    }
+    #statsPanelContent {
+      background: #333;
+      margin: auto;
+      padding: 20px;
+      max-width: 600px;
+      border-radius: 8px;
+    }
+    #toggleStats {
+      margin-top: 10px;
+    }
+    /* Footer styling */
+    footer {
+      text-align: center;
+      font-size: 0.8em;
+      padding: 10px;
+      background-color: #eee;
+      width: 100%;
+      margin-top: auto;
+    }
+    footer a {
+      color: blue;
+      text-decoration: none;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <!-- Fixed header with title, score, production, manual click button, and message area -->
+  <div id="header">
+    <h1>Clicker Game</h1>
+    <div id="score">Score: 0</div>
+    <div id="production">Production: 0/sec</div>
+    <!-- Manual click button; hold-to-buy does not apply here -->
+    <button onclick="manualClick()">Click Me!</button>
+    <!-- Message area -->
+    <div id="message"></div>
+  </div>
+  
+  <!-- Main game container -->
+  <div id="gameContainer">
+    <!-- Adder Rows (ordered: Auto, Super, Mega, Presidential, Giga, Ultra, Tera, MOA) -->
+    <div class="adderRow" id="autoAdderRow">
+      <div class="adderInfo" id="autoCostDisplay">
+        Cost: 10 pts, Potential: 1/sec
+      </div>
+      <div class="adderButton">
+        <button id="autoButton">Buy Auto Adder</button>
+      </div>
+      <div class="adderStats" id="autoStats">
+        Owned: 0, Total: 0/sec
+      </div>
+    </div>
+    <div class="adderRow" id="superAdderRow">
+      <div class="adderInfo" id="superCostDisplay">
+        Cost: 100 pts, Potential: 10/sec
+      </div>
+      <div class="adderButton">
+        <button id="superButton">Buy Super Adder</button>
+      </div>
+      <div class="adderStats" id="superStats">
+        Owned: 0, Total: 0/sec
+      </div>
+    </div>
+    <div class="adderRow" id="megaAdderRow">
+      <div class="adderInfo" id="megaCostDisplay">
+        Cost: 1,000 pts, Potential: 100/sec
+      </div>
+      <div class="adderButton">
+        <button id="megaButton">Buy Mega Adder</button>
+      </div>
+      <div class="adderStats" id="megaStats">
+        Owned: 0, Total: 0/sec
+      </div>
+    </div>
+    <!-- Presidential Adder row (placed between Mega and Giga) -->
+    <div class="adderRow" id="presidentialAdderRow">
+      <div class="adderInfo" id="presidentialCostDisplay">
+        Cost: 2048 pts, Potential: 2048/sec
+      </div>
+      <div class="adderButton">
+        <button id="presidentialButton">Buy Presidential Adder</button>
+      </div>
+      <div class="adderStats" id="presidentialStats">
+        Owned: 0, Total: 0/sec
+      </div>
+    </div>
+    <div class="adderRow" id="gigaAdderRow">
+      <div class="adderInfo" id="gigaCostDisplay">
+        Cost: 10,000 pts, Potential: 1000/sec
+      </div>
+      <div class="adderButton">
+        <button id="gigaButton">Buy Giga Adder</button>
+      </div>
+      <div class="adderStats" id="gigaStats">
+        Owned: 0, Total: 0/sec
+      </div>
+    </div>
+    <div class="adderRow" id="ultraAdderRow">
+      <div class="adderInfo" id="ultraCostDisplay">
+        Cost: 1,000,000 pts, Potential: 10000/sec
+      </div>
+      <div class="adderButton">
+        <button id="ultraButton">Buy Ultra Adder</button>
+      </div>
+      <div class="adderStats" id="ultraStats">
+        Owned: 0, Total: 0/sec
+      </div>
+    </div>
+    <div class="adderRow" id="teraAdderRow">
+      <div class="adderInfo" id="teraCostDisplay">
+        Cost: 10,000,000 pts, Potential: 100000/sec
+      </div>
+      <div class="adderButton">
+        <button id="teraButton">Buy Tera Adder</button>
+      </div>
+      <div class="adderStats" id="teraStats">
+        Owned: 0, Total: 0/sec
+      </div>
+    </div>
+    <div class="adderRow" id="moaAdderRow">
+      <div class="adderInfo" id="moaCostDisplay">
+        Cost: 1,000,000,000 pts, Potential: 1000000/sec
+      </div>
+      <div class="adderButton">
+        <button id="moaButton">Buy Mother of All Adders</button>
+      </div>
+      <div class="adderStats" id="moaStats">
+        Owned: 0, Total: 0/sec
+      </div>
+    </div>
+    <button id="toggleStats" onclick="toggleStats()">Show Stats</button>
+  </div>
+  
+  <!-- Stats Modal -->
+  <div id="statsPanel">
+    <div id="statsPanelContent">
+      <h3>Statistics</h3>
+      <p id="statsTotalProduction">Total Production: 0/sec</p>
+      <p id="statsLifetime">Lifetime Production: 0</p>
+      <p id="statsAuto">Auto Adders: 0 (0/sec)</p>
+      <p id="statsSuper">Super Adders: 0 (0/sec)</p>
+      <p id="statsMega">Mega Adders: 0 (0/sec)</p>
+      <p id="statsPresidential">Presidential Adders: 0 (0/sec)</p>
+      <p id="statsGiga">Giga Adders: 0 (0/sec)</p>
+      <p id="statsUltra">Ultra Adders: 0 (0/sec)</p>
+      <p id="statsTera">Tera Adders: 0 (0/sec)</p>
+      <p id="statsMoa">Mother of All Adders: 0 (0/sec)</p>
+      <button onclick="toggleStats()">Close Stats</button>
+    </div>
+  </div>
+  
+  <!-- Footer -->
+  <footer>
+    <p>Joe Montague © 2025 | <a href="http://www.joe2048.com" target="_blank">Vote Joe 2048</a></p>
+  </footer>
+  
+  <script>
+    /***** Game State *****/
+    let score = 0;
+    let lifetimePoints = 0; // Total points produced over lifetime (ignores spending)
+    
+    // Adder counts
+    let autoCount = 0, superCount = 0, megaCount = 0, gigaCount = 0,
+        ultraCount = 0, teraCount = 0, presidentialCount = 0, moaCount = 0;
+    
+    // Base costs
+    const baseCosts = {
+      auto: 10,
+      super: 100,
+      mega: 1000,
+      giga: 10000,
+      ultra: 1000000,
+      tera: 10000000,
+      presidential: 2048,
+      moa: 1000000000
+    };
+    
+    // Current costs (dynamic scaling)
+    let autoCost = baseCosts.auto;
+    let superCost = baseCosts.super;
+    let megaCost = baseCosts.mega;
+    let gigaCost = baseCosts.giga;
+    let ultraCost = baseCosts.ultra;
+    let teraCost = baseCosts.tera;
+    let presidentialCost = baseCosts.presidential;
+    let moaCost = baseCosts.moa;
+    
+    // Production rates (points per second per unit)
+    const productionRates = {
+      auto: 1,
+      super: 10,
+      mega: 100,
+      giga: 1000,
+      ultra: 10000,
+      tera: 100000,
+      presidential: 2048,
+      moa: 1000000
+    };
+    
+    // Cost scaling factor (each purchase increases cost by 5%)
+    const costScaling = 1.05;
+    
+    /***** Message Display *****/
+    let messageTimer = null;
+    function showMessage(text) {
+      const msgDiv = document.getElementById("message");
+      msgDiv.innerText = text;
+      if (messageTimer) clearTimeout(messageTimer);
+      messageTimer = setTimeout(() => { msgDiv.innerText = ""; }, 2000);
+    }
+    
+    /***** UI Update Functions *****/
+    function updateScoreDisplay() {
+      const displayScore = Math.floor(score);
+      document.getElementById("score").innerHTML = `Score: ${displayScore.toLocaleString()}`;
+    }
+    
+    function updateProductionDisplay(totalProduction) {
+      document.getElementById("production").innerHTML = `Production: ${totalProduction.toFixed(2)}/sec`;
+    }
+    
+    function updateAdderDisplay() {
+      document.getElementById("autoCostDisplay").innerHTML =
+        `Cost: ${Math.floor(autoCost).toLocaleString()} pts, Potential: ${productionRates.auto}/sec`;
+      document.getElementById("autoStats").innerHTML =
+        `Owned: ${autoCount}, Total: ${(autoCount * productionRates.auto).toFixed(2)}/sec`;
+      
+      document.getElementById("superCostDisplay").innerHTML =
+        `Cost: ${Math.floor(superCost).toLocaleString()} pts, Potential: ${productionRates.super}/sec`;
+      document.getElementById("superStats").innerHTML =
+        `Owned: ${superCount}, Total: ${(superCount * productionRates.super).toFixed(2)}/sec`;
+      
+      document.getElementById("megaCostDisplay").innerHTML =
+        `Cost: ${Math.floor(megaCost).toLocaleString()} pts, Potential: ${productionRates.mega}/sec`;
+      document.getElementById("megaStats").innerHTML =
+        `Owned: ${megaCount}, Total: ${(megaCount * productionRates.mega).toFixed(2)}/sec`;
+      
+      document.getElementById("presidentialCostDisplay").innerHTML =
+        `Cost: ${Math.floor(presidentialCost).toLocaleString()} pts, Potential: ${productionRates.presidential}/sec`;
+      document.getElementById("presidentialStats").innerHTML =
+        `Owned: ${presidentialCount}, Total: ${(presidentialCount * productionRates.presidential).toFixed(2)}/sec`;
+      
+      document.getElementById("gigaCostDisplay").innerHTML =
+        `Cost: ${Math.floor(gigaCost).toLocaleString()} pts, Potential: ${productionRates.giga}/sec`;
+      document.getElementById("gigaStats").innerHTML =
+        `Owned: ${gigaCount}, Total: ${(gigaCount * productionRates.giga).toFixed(2)}/sec`;
+      
+      document.getElementById("ultraCostDisplay").innerHTML =
+        `Cost: ${Math.floor(ultraCost).toLocaleString()} pts, Potential: ${productionRates.ultra}/sec`;
+      document.getElementById("ultraStats").innerHTML =
+        `Owned: ${ultraCount}, Total: ${(ultraCount * productionRates.ultra).toFixed(2)}/sec`;
+      
+      document.getElementById("teraCostDisplay").innerHTML =
+        `Cost: ${Math.floor(teraCost).toLocaleString()} pts, Potential: ${productionRates.tera}/sec`;
+      document.getElementById("teraStats").innerHTML =
+        `Owned: ${teraCount}, Total: ${(teraCount * productionRates.tera).toFixed(2)}/sec`;
+      
+      document.getElementById("moaCostDisplay").innerHTML =
+        `Cost: ${Math.floor(moaCost).toLocaleString()} pts, Potential: ${productionRates.moa}/sec`;
+      document.getElementById("moaStats").innerHTML =
+        `Owned: ${moaCount}, Total: ${(moaCount * productionRates.moa).toFixed(2)}/sec`;
+    }
+    
+    function updateStatsPanel(totalProduction) {
+      document.getElementById("statsTotalProduction").innerHTML =
+        `Total Production: ${totalProduction.toFixed(2)}/sec`;
+      document.getElementById("statsLifetime").innerHTML =
+        `Lifetime Production: ${Math.floor(lifetimePoints).toLocaleString()}`;
+      document.getElementById("statsAuto").innerHTML =
+        `Auto Adders: ${autoCount} (${(autoCount * productionRates.auto).toFixed(2)}/sec)`;
+      document.getElementById("statsSuper").innerHTML =
+        `Super Adders: ${superCount} (${(superCount * productionRates.super).toFixed(2)}/sec)`;
+      document.getElementById("statsMega").innerHTML =
+        `Mega Adders: ${megaCount} (${(megaCount * productionRates.mega).toFixed(2)}/sec)`;
+      document.getElementById("statsPresidential").innerHTML =
+        `Presidential Adders: ${presidentialCount} (${(presidentialCount * productionRates.presidential).toFixed(2)}/sec)`;
+      document.getElementById("statsGiga").innerHTML =
+        `Giga Adders: ${gigaCount} (${(gigaCount * productionRates.giga).toFixed(2)}/sec)`;
+      document.getElementById("statsUltra").innerHTML =
+        `Ultra Adders: ${ultraCount} (${(ultraCount * productionRates.ultra).toFixed(2)}/sec)`;
+      document.getElementById("statsTera").innerHTML =
+        `Tera Adders: ${teraCount} (${(teraCount * productionRates.tera).toFixed(2)}/sec)`;
+      document.getElementById("statsMoa").innerHTML =
+        `Mother of All Adders: ${moaCount} (${(moaCount * productionRates.moa).toFixed(2)}/sec)`;
+    }
+    
+    /***** User Actions *****/
+    function manualClick() {
+      score += 1;
+      updateScoreDisplay();
+    }
+    
+    function buyAutoAdder() {
+      if (score >= autoCost) {
+        score -= autoCost;
+        autoCount++;
+        autoCost *= costScaling;
+        updateScoreDisplay();
+        updateAdderDisplay();
+      } else {
+        showMessage("Not enough points to buy Auto Adder");
+      }
+    }
+    
+    function buySuperAdder() {
+      if (score >= superCost) {
+        score -= superCost;
+        superCount++;
+        superCost *= costScaling;
+        updateScoreDisplay();
+        updateAdderDisplay();
+      } else {
+        showMessage("Not enough points to buy Super Adder");
+      }
+    }
+    
+    function buyMegaAdder() {
+      if (score >= megaCost) {
+        score -= megaCost;
+        megaCount++;
+        megaCost *= costScaling;
+        updateScoreDisplay();
+        updateAdderDisplay();
+      } else {
+        showMessage("Not enough points to buy Mega Adder");
+      }
+    }
+    
+    function buyPresidentialAdder() {
+      if (score >= presidentialCost) {
+        score -= presidentialCost;
+        presidentialCount++;
+        presidentialCost *= costScaling;
+        updateScoreDisplay();
+        updateAdderDisplay();
+        showMessage("Thanks for supporting Joe!");
+      } else {
+        showMessage("Not enough points to buy Presidential Adder");
+      }
+    }
+    
+    function buyGigaAdder() {
+      if (score >= gigaCost) {
+        score -= gigaCost;
+        gigaCount++;
+        gigaCost *= costScaling;
+        updateScoreDisplay();
+        updateAdderDisplay();
+      } else {
+        showMessage("Not enough points to buy Giga Adder");
+      }
+    }
+    
+    function buyUltraAdder() {
+      if (score >= ultraCost) {
+        score -= ultraCost;
+        ultraCount++;
+        ultraCost *= costScaling;
+        updateScoreDisplay();
+        updateAdderDisplay();
+      } else {
+        showMessage("Not enough points to buy Ultra Adder");
+      }
+    }
+    
+    function buyTeraAdder() {
+      if (score >= teraCost) {
+        score -= teraCost;
+        teraCount++;
+        teraCost *= costScaling;
+        updateScoreDisplay();
+        updateAdderDisplay();
+      } else {
+        showMessage("Not enough points to buy Tera Adder");
+      }
+    }
+    
+    function buyMoaAdder() {
+      if (score >= moaCost) {
+        score -= moaCost;
+        moaCount++;
+        moaCost *= costScaling;
+        updateScoreDisplay();
+        updateAdderDisplay();
+      } else {
+        showMessage("Not enough points to buy Mother of All Adders");
+      }
+    }
+    
+    /***** Admin Functions *****/
+    window.adminSetScore = function(newScore) {
+      score = Number(newScore) || score;
+      updateScoreDisplay();
+    }
+    window.adminResetGame = function() {
+      score = 0;
+      lifetimePoints = 0;
+      autoCount = superCount = megaCount = gigaCount = ultraCount = teraCount = presidentialCount = moaCount = 0;
+      autoCost = baseCosts.auto;
+      superCost = baseCosts.super;
+      megaCost = baseCosts.mega;
+      gigaCost = baseCosts.giga;
+      ultraCost = baseCosts.ultra;
+      teraCost = baseCosts.tera;
+      presidentialCost = baseCosts.presidential;
+      moaCost = baseCosts.moa;
+      updateScoreDisplay();
+      updateAdderDisplay();
+    }
+    window.adminAddAdder = function(type, amount) {
+      amount = Number(amount) || 1;
+      switch(type) {
+        case 'auto': autoCount += amount; break;
+        case 'super': superCount += amount; break;
+        case 'mega': megaCount += amount; break;
+        case 'giga': gigaCount += amount; break;
+        case 'ultra': ultraCount += amount; break;
+        case 'tera': teraCount += amount; break;
+        case 'presidential': presidentialCount += amount; break;
+        case 'moa': moaCount += amount; break;
+        default: console.log("Unknown adder type");
+      }
+      updateAdderDisplay();
+    }
+    
+    /***** Button Hold-to-Buy (Continuous Purchase) *****/
+    function addHoldListener(buttonId, buyFunction) {
+      const button = document.getElementById(buttonId);
+      let holdInterval = null;
+      let holdInsufficient = false;
+      
+      function startHold() {
+        buyFunction();
+        // Faster interval: 100ms for continuous purchase
+        holdInterval = setInterval(() => {
+          if (score >= getCost(buyFunction)) {
+            buyFunction();
+            holdInsufficient = false;
+          } else {
+            if (!holdInsufficient) {
+              showMessage("Not enough points to buy " + button.innerText);
+              holdInsufficient = true;
+            }
+          }
+        }, 100);
+      }
+      
+      function endHold() {
+        clearInterval(holdInterval);
+        holdInterval = null;
+        holdInsufficient = false;
+      }
+      
+      // Mouse events for desktop
+      button.addEventListener("mousedown", startHold);
+      button.addEventListener("mouseup", endHold);
+      button.addEventListener("mouseleave", endHold);
+      // Touch events for mobile
+      button.addEventListener("touchstart", function(e) {
+        e.preventDefault();
+        startHold();
+      });
+      button.addEventListener("touchend", function(e) {
+        e.preventDefault();
+        endHold();
+      });
+      button.addEventListener("touchcancel", function(e) {
+        e.preventDefault();
+        endHold();
+      });
+    }
+    
+    function getCost(buyFunction) {
+      switch(buyFunction) {
+        case buyAutoAdder: return autoCost;
+        case buySuperAdder: return superCost;
+        case buyMegaAdder: return megaCost;
+        case buyPresidentialAdder: return presidentialCost;
+        case buyGigaAdder: return gigaCost;
+        case buyUltraAdder: return ultraCost;
+        case buyTeraAdder: return teraCost;
+        case buyMoaAdder: return moaCost;
+        default: return Infinity;
+      }
+    }
+    
+    // Attach hold listeners to each adder button (manual click button is excluded)
+    addHoldListener("autoButton", buyAutoAdder);
+    addHoldListener("superButton", buySuperAdder);
+    addHoldListener("megaButton", buyMegaAdder);
+    addHoldListener("presidentialButton", buyPresidentialAdder);
+    addHoldListener("gigaButton", buyGigaAdder);
+    addHoldListener("ultraButton", buyUltraAdder);
+    addHoldListener("teraButton", buyTeraAdder);
+    addHoldListener("moaButton", buyMoaAdder);
+    
+    /***** Stats Panel Toggle (Modal) *****/
+    function toggleStats() {
+      const panel = document.getElementById("statsPanel");
+      const toggleBtn = document.getElementById("toggleStats");
+      if (panel.style.display === "none" || panel.style.display === "") {
+        panel.style.display = "block";
+        toggleBtn.innerText = "Hide Stats";
+      } else {
+        panel.style.display = "none";
+        toggleBtn.innerText = "Show Stats";
+      }
+    }
+    
+    /***** Main Game Loop *****/
+    let lastUpdateTime = performance.now();
+    function gameLoop(currentTime) {
+      const dt = (currentTime - lastUpdateTime) / 1000; // dt in seconds
+      lastUpdateTime = currentTime;
+      
+      const autoProd          = autoCount          * productionRates.auto;
+      const superProd         = superCount         * productionRates.super;
+      const megaProd          = megaCount          * productionRates.mega;
+      const presidentialProd  = presidentialCount  * productionRates.presidential;
+      const gigaProd          = gigaCount          * productionRates.giga;
+      const ultraProd         = ultraCount         * productionRates.ultra;
+      const teraProd          = teraCount          * productionRates.tera;
+      const moaProd           = moaCount           * productionRates.moa;
+      
+      const totalProduction = autoProd + superProd + megaProd + presidentialProd + gigaProd + ultraProd + teraProd + moaProd;
+      
+      score += totalProduction * dt;
+      lifetimePoints += totalProduction * dt;
+      
+      updateScoreDisplay();
+      updateProductionDisplay(totalProduction);
+      updateStatsPanel(totalProduction);
+      
+      requestAnimationFrame(gameLoop);
+    }
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
